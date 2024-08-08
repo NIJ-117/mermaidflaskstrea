@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mermaid.js Conversion with the LLM</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.3.2/html2canvas.min.js"></script>
+    <script src="https://bumbu.me/svg-pan-zoom/dist/svg-pan-zoom.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #8AAAE5;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        h1, h2, label {
+            color: #fff;
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: row;
+            height: 100vh;
+            padding: 20px;
+        }
+
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            width: 50%;
+            padding-right: 20px;
+        }
+
+        .right-column {
+            width: 50%;
+        }
+
+        .box {
+            margin-bottom: 20px;
+        }
+
+        #question {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            background-color: #ffffff;
+            border: 1px solid #555;
+            color: #000000;
+        }
+
+        #mermaid-code {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            background-color: #ffffff;
+            border: 1px solid #555;
+            color: #000000;
+        }
+
+        .button-container {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .button-container button {
+            padding: 10px 20px;
+            background-color: #3c46d6;
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .button-container button:hover {
+            background-color: #777;
+        }
+
+        .content-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100% - 60px); /* Adjust according to the header height */
+        }
+
+        #graphDiv {
+            height: calc(100% - 20px); /* Adjust according to the title height */
+            background-color: #ffffff;
+            border: 1px solid #555;
+            border-radius: 8px;
+        }
+
+        #documentation {
+            height: 500px; /* Fixed height for documentation */
+            overflow-y: auto; /* Scrollbar for overflow */
+            border: 1px solid #ffffff;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        #mySvgId {
+            height: 100%;
+            width: 100%;
+        
+
+        }
+        #header{
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 id="header"> Mermaid.js Conversion with the LLM</h1>
+    <div class="main-container">
+        <div class="left-column">
+            <div class="box">
+                <label for="question">Enter a question:</label>
+                <input type="text" id="question" name="question" required>
+                <div class="button-container">
+                    <button id="generate-doc-button">Generate Documentation</button>
+                    <button id="generate-code-button" disabled>Generate Mermaid Code</button>
+                </div>
+            </div>
+            <div class="box">
+                <label for="mermaid-code">Generated Mermaid.js code:</label>
+                <textarea id="mermaid-code" rows="10"></textarea>
+                <div class="button-container">
+                    <button id="display-button" disabled>Display Mermaid Diagram</button>
+                    <button id="download-code-button" disabled>Download Mermaid.js Code</button>
+                    <button id="download-image-button" disabled>Download Mermaid Diagram as Image</button>
+                    <button id="download-doc-button" disabled>Download Documentation</button>
+                </div>
+            </div>
+            <div class="box">
+                <h2>Documentation</h2>
+                <div id="documentation"></div>
+            </div>
+        </div>
+        <div class="right-column">
+            <h2>Mermaid Diagram</h2>
+            <div id="graphDiv"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('generate-doc-button').addEventListener('click', function () {
+            const question = document.getElementById('question').value;
+            const formData = new FormData();
+            formData.append('question', question);
+
+            fetch('/generate_documentation', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('documentation').innerText = data.documentation_text;
+                    document.getElementById('generate-code-button').disabled = false;
+                    document.getElementById('generate-code-button').dataset.context = data.documentation_text;
+                    document.getElementById('download-doc-button').disabled = false;
+                });
+        });
+
+        document.getElementById('generate-code-button').addEventListener('click', function () {
+            const question = document.getElementById('question').value;
+            const context = document.getElementById('generate-code-button').dataset.context;
+            const formData = new FormData();
+            formData.append('question', question);
+            formData.append('context', context);
+
+            fetch('/generate_code', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('mermaid-code').value = data.mermaid_code;
+                    document.getElementById('display-button').disabled = false;
+                    document.getElementById('download-code-button').disabled = false;
+                    document.getElementById('download-image-button').disabled = false;
+                });
+        });
+
+        document.getElementById('display-button').addEventListener('click', async function () {
+            const code = document.getElementById('mermaid-code').value;
+            const element = document.querySelector('#graphDiv');
+            const { svg } = await mermaid.render('mySvgId', code);
+            element.innerHTML = svg.replace(/( )*max-width:( 0-9\.)*px;/i, '');
+
+            var doPan = false;
+            var eventsHandler;
+            var panZoom;
+            var mousepos;
+
+            eventsHandler = {
+                haltEventListeners: ['mousedown', 'mousemove', 'mouseup'],
+
+                mouseDownHandler: function (ev) {
+                    if (ev.target.className == "[object SVGAnimatedString]") {
+                        doPan = true;
+                        mousepos = { x: ev.clientX, y: ev.clientY };
+                    }
+                },
+
+                mouseMoveHandler: function (ev) {
+                    if (doPan) {
+                        panZoom.panBy({ x: ev.clientX - mousepos.x, y: ev.clientY - mousepos.y });
+                        mousepos = { x: ev.clientX, y: ev.clientY };
+                        window.getSelection().removeAllRanges();
+                    }
+                },
+
+                mouseUpHandler: function () {
+                    doPan = false;
+                },
+
+                init: function (options) {
+                    options.svgElement.addEventListener('mousedown', this.mouseDownHandler, false);
+                    options.svgElement.addEventListener('mousemove', this.mouseMoveHandler, false);
+                    options.svgElement.addEventListener('mouseup', this.mouseUpHandler, false);
+                },
+
+                destroy: function (options) {
+                    options.svgElement.removeEventListener('mousedown', this.mouseDownHandler, false);
+                    options.svgElement.removeEventListener('mousemove', this.mouseMoveHandler, false);
+                    options.svgElement.removeEventListener('mouseup', this.mouseUpHandler, false);
+                }
+            };
+
+            panZoom = svgPanZoom('#mySvgId', {
+                zoomEnabled: true,
+                controlIconsEnabled: true,
+                fit: 1,
+                center: 1,
+                customEventsHandler: eventsHandler
+            });
+        });
+
+        document.getElementById('download-code-button').addEventListener('click', function () {
+            const code = document.getElementById('mermaid-code').value;
+            const formData = new FormData();
+            formData.append('code', code);
+
+            fetch('/download_code', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'mermaid_code.txt';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                });
+        });
+
+        document.getElementById('download-doc-button').addEventListener('click', function () {
+            const documentation = document.getElementById('documentation').innerText;
+            const formData = new FormData();
+            formData.append('documentation', documentation);
+
+            fetch('/download_documentation', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'documentation.txt';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                });
+        });
+
+        document.getElementById('download-image-button').addEventListener('click', function () {
+            const diagramElement = document.getElementById('graphDiv');
+            html2canvas(diagramElement).then(canvas => {
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = 'mermaid_diagram.png';
+                link.click();
+            });
+        });
+    </script>
+</body>
+
+</html>
