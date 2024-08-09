@@ -12,7 +12,7 @@ network_architect = Agent(
     backstory="You are a cloud network architect responsible for designing and implementing network infrastructure.",
     tools=[search_tool],
     llm=llm_model_network,
-    max_iter=1
+    max_iter=3
 )
 
 security_specialist = Agent(
@@ -24,7 +24,7 @@ security_specialist = Agent(
     tools=[search_tool],
     llm=llm_model_security,
     
-    max_iter=1
+    max_iter=3
 )
 devops_engineer = Agent(
     role='DevOps Engineer',
@@ -34,7 +34,7 @@ devops_engineer = Agent(
     memory=True,
     verbose=True,
     llm=llm_model_devops,
-    max_iter=1
+    max_iter=3
 )
 
 documentation_specialist = Agent(
@@ -44,5 +44,5 @@ documentation_specialist = Agent(
     memory=True,
     verbose=True,
     llm=llm_model_devops,
-    max_iter=2
+    max_iter=3
 )
