@@ -31,7 +31,7 @@ from langchain_openai import ChatOpenAI
 
 # Initialize the Groq model
 llm_model2 = ChatOpenAI(
-    model="llama3-groq-70b-8192-tool-use-preview",  # Example model, replace with your model
+    model="llama-3.1-70b-versatile",  # Example model, replace with your model
     temperature=0.3,
     max_tokens=8000,
     base_url="https://api.groq.com/openai/v1",
