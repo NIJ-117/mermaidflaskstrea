@@ -12,7 +12,7 @@ from creew import crew1, crew2, crew3, crew4
 def kickoff_crew(crew, inputs):
     return crew.kickoff(inputs=inputs)
 
-def process_question(question):
+def generate_documentation(question):
     # Define the first crew
     architecture_type = question
     inputs = {'architecture_type': architecture_type}
@@ -36,24 +36,22 @@ def process_question(question):
 
     result = crew4.kickoff(inputs=inputs)
 
-    print(result)
-
     context = result
-    result_code = ""
+    return str(context)  # Convert context to string if necessary
 
+def generate_mermaid_code(question, context):
     inputs = {
-        "question": f"{question}",
-        "Context_js": f"{context}"
+        "question": question,
+        "Context_js": context
     }
 
+    final_result = None
     for output in app1.stream(inputs):
         for key, value in output.items():
             pprint(f"Node '{key}':")
-        pprint("\n---\n")
+        final_result = value["generation"]
 
-    final_result = value["generation"]
-    text=f"""{context}"""
-    return final_result, text
+    return str(final_result)  # Convert final_result to string if necessary
 
 # Function to render Mermaid code
 def mermaid(code: str) -> None:
@@ -71,20 +69,30 @@ def mermaid(code: str) -> None:
     )
 
 # Streamlit app
+
+st.title("Mermaid.js Conversion with the LLM")
 with st.sidebar:
-    st.title("Mermaid.js Conversion with the LLM")
+    
     st.write("Enter a question")
 
     question = st.text_input("Question")
 
-    if st.button("Generate"):
+    # Generate Documentation Button
+    if st.button("Generate Documentation"):
         if question:
-            result, documentation_text = process_question(question)
-            # Store results in session state
-            st.session_state["mermaid_code"] = result
+            documentation_text = generate_documentation(question)
+            # Store documentation in session state
             st.session_state["documentation_text"] = documentation_text
         else:
             st.error("Please enter a question.")
+
+    # Generate Mermaid Code Button
+    if st.button("Generate Mermaid Code"):
+        if "documentation_text" in st.session_state:
+            mermaid_code = generate_mermaid_code(question, st.session_state["documentation_text"])
+            st.session_state["mermaid_code"] = mermaid_code
+        else:
+            st.error("Please generate documentation first.")
 
 # Display the generated Mermaid.js code in an editable text area
 if "mermaid_code" in st.session_state:
@@ -104,19 +112,19 @@ if "mermaid_code" in st.session_state:
             mime="text/plain"
         )
 
-# Button to download the documentation
-if "documentation_text" in st.session_state:
-    st.download_button(
-        label="Download Documentation",
-        data=st.session_state["documentation_text"],
-        file_name="network_documentation.txt",
-        mime="text/plain"
-    )
-
-# Main area to display the Mermaid diagram and documentation
-if "mermaid_code" in st.session_state and st.session_state.get("display_diagram", False):
-    mermaid(st.session_state["mermaid_code"])
+        # Button to download the documentation
+        if "documentation_text" in st.session_state:
+            st.download_button(
+                label="Download Documentation",
+                data=st.session_state["documentation_text"],
+                file_name="network_documentation.txt",
+                mime="text/plain"
+            )
 
 if "documentation_text" in st.session_state:
     st.write("### Documentation")
     st.write(st.session_state["documentation_text"])
+
+# Main area to display the Mermaid diagram
+if "mermaid_code" in st.session_state and st.session_state.get("display_diagram", False):
+    mermaid(st.session_state["mermaid_code"])
